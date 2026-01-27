@@ -3,7 +3,7 @@
         'name' => 'vendor/bookie',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '0b4c9ed273cf26a0f0cfe741d94815a7ac295280',
+        'reference' => 'ec8dce0f7b0dad1de3e1f4b4d07eed2bffdb7209',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -46,6 +46,15 @@
             'aliases' => array(),
             'dev_requirement' => false,
         ),
+        'phpmailer/phpmailer' => array(
+            'pretty_version' => 'v7.0.2',
+            'version' => '7.0.2.0',
+            'reference' => 'ebf1655bd5b99b3f97e1a3ec0a69e5f4cd7ea088',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../phpmailer/phpmailer',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'sabberworm/php-css-parser' => array(
             'pretty_version' => 'v9.1.0',
             'version' => '9.1.0.0',
@@ -67,7 +76,7 @@
         'vendor/bookie' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '0b4c9ed273cf26a0f0cfe741d94815a7ac295280',
+            'reference' => 'ec8dce0f7b0dad1de3e1f4b4d07eed2bffdb7209',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
