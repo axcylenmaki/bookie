@@ -1,0 +1,58 @@
+/* SIDEBAR DARK STYLES */
+.sidebar-dark {
+    background-color: #343a40;
+    color: #fff;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    min-height: 100vh;
+}
+
+.sidebar-dark .sidebar-brand {
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: 1px;
+}
+
+.sidebar-dark .sidebar-brand span {
+    color: #adb5bd;
+}
+
+.sidebar-dark .nav-link {
+    color: #adb5bd !important;
+    border-radius: 5px;
+    margin-bottom: 2px;
+    transition: all 0.3s;
+    padding: 10px 15px;
+}
+
+.sidebar-dark .nav-link:hover, 
+.sidebar-dark .nav-link.active {
+    background-color: #495057;
+    color: #fff !important;
+}
+
+.sidebar-dark .nav-link i {
+    width: 24px;
+    text-align: center;
+    margin-right: 10px;
+}
+
+.user-avatar {
+    border: 3px solid rgba(255,255,255,0.1);
+}
+
+.border-white-10 {
+    border-color: rgba(255,255,255,0.1) !important;
+}
+
+.btn-logout {
+    background-color: #495057;
+    border-color: #495057;
+    color: #fff;
+    transition: all 0.3s;
+}
+
+.btn-logout:hover {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}

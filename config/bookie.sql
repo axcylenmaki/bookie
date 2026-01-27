@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 24 Jan 2026 pada 13.16
+-- Waktu pembuatan: 27 Jan 2026 pada 01.33
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -95,7 +95,9 @@ CREATE TABLE `produk` (
   `kategori_id` int(11) NOT NULL,
   `isbn` varchar(20) DEFAULT NULL,
   `nama_buku` varchar(150) NOT NULL,
+  `penulis` varchar(150) DEFAULT NULL,
   `deskripsi` text DEFAULT NULL,
+  `gambar` varchar(255) DEFAULT NULL,
   `stok` int(11) DEFAULT 0,
   `harga` int(11) NOT NULL,
   `modal` int(11) NOT NULL,
@@ -103,6 +105,15 @@ CREATE TABLE `produk` (
   `keuntungan` int(11) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data untuk tabel `produk`
+--
+
+INSERT INTO `produk` (`id`, `penjual_id`, `kategori_id`, `isbn`, `nama_buku`, `penulis`, `deskripsi`, `gambar`, `stok`, `harga`, `modal`, `margin`, `keuntungan`, `created_at`) VALUES
+(1, 4, 1, NULL, 'Bumi', NULL, 'buku series bumi  by tere liye', 'produk_1769388882.jpg', 100, 100000, 95000, 0, 0, '2026-01-26 00:54:42'),
+(2, 4, 1, NULL, 'Bulan', 'Yuki', 'buku bumi series ke 2', 'produk_1769407952_420.jpg', 0, 105000, 80000, 25000, 0, '2026-01-26 01:37:04'),
+(4, 4, 1, NULL, 'Matahari', 'Tere Liye', 'Buku bumi series karya tereliye ke 3', 'produk_1769407881_569.jpg', 0, 100000, 50000, 50000, 0, '2026-01-26 06:11:21');
 
 -- --------------------------------------------------------
 
@@ -281,7 +292,7 @@ ALTER TABLE `password_resets`
 -- AUTO_INCREMENT untuk tabel `produk`
 --
 ALTER TABLE `produk`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT untuk tabel `produk_gambar`

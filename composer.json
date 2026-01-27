@@ -1,0 +1,13 @@
+{
+    "name": "vendor/bookie",
+    "description": "Bookstore E-commerce System",
+    "type": "project",
+    "require": {
+        "dompdf/dompdf": "^3.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    }
+}
