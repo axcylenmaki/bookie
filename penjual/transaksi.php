@@ -706,6 +706,7 @@ document.querySelectorAll('.resi-input').forEach(input => {
 
 // Smooth scroll dan auto-focus modal
 document.addEventListener('DOMContentLoaded', function() {
+
   const urlParams = new URLSearchParams(window.location.search);
   const statusParam = urlParams.get('status');
   
