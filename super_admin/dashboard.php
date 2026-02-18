@@ -5,164 +5,120 @@ session_start();
    AUTH GUARD
 ===================== */
 if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'super_admin') {
-  header("Location: ../auth/login.php");
-  exit;
+    header("Location: ../auth/login.php");
+    exit;
 }
 
 include "../config/database.php";
 
 /* =====================
-   DATA USER
+   DATA AKUN
 ===================== */
-$namaUser = $_SESSION['user']['nama'];
-$roleUser = $_SESSION['user']['role'];
-
-/* =====================
-   DATA MASTER
-===================== */
-$totalPenjual  = mysqli_num_rows(mysqli_query($conn, "SELECT id FROM users WHERE role='penjual'"));
-$totalPembeli  = mysqli_num_rows(mysqli_query($conn, "SELECT id FROM users WHERE role='pembeli'"));
-$totalKategori = mysqli_num_rows(mysqli_query($conn, "SELECT id FROM kategori"));
-
-/* =====================
-   DATA TRANSAKSI
-===================== */
-$totalTransaksi    = 0;
-$totalPendapatan   = 0;
-$transaksiHariIni  = 0;
-$pendapatanHariIni = 0;
-
-$cekTabel = mysqli_query($conn, "SHOW TABLES LIKE 'transaksi'");
-if (mysqli_num_rows($cekTabel) > 0) {
-
-  $totalTransaksi = mysqli_num_rows(
-    mysqli_query($conn, "SELECT id FROM transaksi WHERE status='selesai'")
-  );
-
-  $qPendapatan = mysqli_query(
-    $conn, "SELECT SUM(total) AS pendapatan FROM transaksi WHERE status='selesai'"
-  );
-  $totalPendapatan = mysqli_fetch_assoc($qPendapatan)['pendapatan'] ?? 0;
-
-  $qHariIni = mysqli_query(
-    $conn,
-    "SELECT COUNT(id) AS total, SUM(total) AS pendapatan
-     FROM transaksi
-     WHERE status='selesai'
-     AND DATE(created_at)=CURDATE()"
-  );
-  $hariIni = mysqli_fetch_assoc($qHariIni);
-  $transaksiHariIni  = $hariIni['total'] ?? 0;
-  $pendapatanHariIni = $hariIni['pendapatan'] ?? 0;
-}
+$namaUser   = $_SESSION['user']['nama'];
+$emailUser  = $_SESSION['user']['email'] ?? '-';
+$roleUser   = strtoupper($_SESSION['user']['role']);
+$statusUser = 'Aktif';
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <title>Dashboard Super Admin</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta charset="UTF-8">
+    <title>Dashboard Super Admin - BOOKIE</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="includes/sidebar.css">
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .welcome-box {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        .info-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 3px 8px rgba(0,0,0,.08);
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        .label {
+            color: #6c757d;
+        }
+        .value {
+            font-weight: 600;
+        }
+    </style>
 </head>
-<body class="bg-light">
+<body>
 
-<div class="container-fluid">
-  <div class="row">
-
+<div class="main-wrapper">
     <!-- SIDEBAR -->
-    <div class="col-2 bg-dark text-white min-vh-100 p-3">
-      <h4 class="text-center mb-4">BOOKIE</h4>
-
-      <div class="text-center mb-4">
-        <div class="fw-semibold"><?= $namaUser ?></div>
-        <small class="text-secondary"><?= ucfirst(str_replace('_',' ',$roleUser)) ?></small>
-      </div>
-
-      <ul class="nav flex-column gap-1">
-        <li><a class="nav-link text-white fw-bold bg-secondary rounded" href="dashboard.php">Dashboard</a></li>
-        <li><a class="nav-link text-white" href="penjual.php">Penjual</a></li>
-        <li><a class="nav-link text-white" href="pembeli.php">Pembeli</a></li>
-        <li><a class="nav-link text-white" href="kategori.php">Kategori</a></li>
-      </ul>
-
-      <a href="../auth/logout.php" class="btn btn-secondary w-100 mt-4">Logout</a>
-    </div>
+    <?php include "includes/sidebar.php"; ?>
 
     <!-- CONTENT -->
-    <div class="col-10 p-4">
+    <div class="content-area p-4">
 
-      <h3 class="mb-1">Dashboard</h3>
-      <p class="text-muted mb-4">Ringkasan data sistem Bookie</p>
-
-      <div class="row g-4">
-
-        <div class="col-md-3">
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <small class="text-muted">Total Penjual</small>
-              <h3><?= $totalPenjual ?></h3>
-            </div>
-          </div>
+        <!-- WELCOME -->
+        <div class="welcome-box">
+            <h2>Selamat Datang, <?= htmlspecialchars($namaUser) ?> 👋</h2>
+            <p class="mb-0">
+                Anda login sebagai <strong>Super Admin</strong> dan memiliki akses penuh ke sistem BOOKIE.
+            </p>
         </div>
 
-        <div class="col-md-3">
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <small class="text-muted">Total Pembeli</small>
-              <h3><?= $totalPembeli ?></h3>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-3">
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <small class="text-muted">Total Kategori</small>
-              <h3><?= $totalKategori ?></h3>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-3">
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <small class="text-muted">Total Transaksi</small>
-              <h3><?= $totalTransaksi ?></h3>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-3">
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <small class="text-muted">Pendapatan Total</small>
-              <h5>Rp <?= number_format($totalPendapatan,0,',','.') ?></h5>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-3">
-          <div class="card text-bg-success shadow-sm">
-            <div class="card-body">
-              <small>Transaksi Hari Ini</small>
-              <h3><?= $transaksiHariIni ?></h3>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-3">
-          <div class="card text-bg-success shadow-sm">
-            <div class="card-body">
-              <small>Pendapatan Hari Ini</small>
-              <h5>Rp <?= number_format($pendapatanHariIni,0,',','.') ?></h5>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
+        <!-- INFO AKUN -->
+<div class="info-card">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 class="mb-0">
+            <i class="bi bi-person-badge"></i> Informasi Akun
+        </h5>
+        <a href="profile.php" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-pencil-square"></i> Edit Profil
+        </a>
     </div>
-  </div>
+
+    <div class="info-item">
+        <span class="label">Nama</span>
+        <span class="value"><?= htmlspecialchars($namaUser) ?></span>
+    </div>
+
+    <div class="info-item">
+        <span class="label">Email</span>
+        <span class="value"><?= htmlspecialchars($emailUser) ?></span>
+    </div>
+
+    <div class="info-item">
+        <span class="label">Role</span>
+        <span class="value text-primary"><?= $roleUser ?></span>
+    </div>
+
+    <div class="info-item">
+        <span class="label">Status Akun</span>
+        <span class="value text-success"><?= $statusUser ?></span>
+    </div>
+
+    <div class="info-item">
+        <span class="label">Hak Akses</span>
+        <span class="value">Manajemen Sistem</span>
+    </div>
 </div>
 
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

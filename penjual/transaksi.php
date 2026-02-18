@@ -65,17 +65,25 @@ if (isset($_GET['hapus'])) {
 ===================== */
 $status = $_GET['status'] ?? '';
 
+// Perbaikan: JOIN dengan transaksi_detail untuk hitung total
 $where = "WHERE t.penjual_id='$idPenjual'";
 if ($status && $status != 'semua') {
   $where .= " AND t.status='$status'";
 }
 
-// Query dengan kolom yang benar (no_hp bukan telepon)
+// Query dengan perhitungan total dari transaksi_detail
 $query = "
-  SELECT t.*, u.nama as nama_pembeli, u.email as email_pembeli, u.no_hp as no_hp_pembeli
+  SELECT 
+    t.*, 
+    u.nama as nama_pembeli, 
+    u.email as email_pembeli, 
+    u.no_hp as no_hp_pembeli,
+    SUM(d.qty * d.harga) as total
   FROM transaksi t
   JOIN users u ON t.pembeli_id = u.id
+  LEFT JOIN transaksi_detail d ON t.id = d.transaksi_id
   $where
+  GROUP BY t.id
   ORDER BY t.created_at DESC
 ";
 

@@ -34,12 +34,16 @@ if (isset($_POST['login'])) {
         'id'    => $user['id'],
         'nama'  => $user['nama'],
         'email' => $user['email'],
-        'role'  => $user['role']
+        'role'  => $user['role'],
+        'last_activity' => time() // Tambah timestamp session
       ];
 
-      // SET STATUS ONLINE
+      // SET STATUS ONLINE dengan last_activity
       mysqli_query($conn, "
-        UPDATE users SET status='online' WHERE id='{$user['id']}'
+        UPDATE users 
+        SET status = 'online', 
+            last_activity = NOW() 
+        WHERE id = '{$user['id']}'
       ");
 
       header("Location: ../{$user['role']}/dashboard.php");
@@ -58,8 +62,6 @@ if (isset($_POST['login'])) {
   <meta charset="UTF-8">
   <title>Login | Bookie</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  <!-- BOOTSTRAP -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">

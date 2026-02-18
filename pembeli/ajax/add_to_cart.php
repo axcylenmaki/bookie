@@ -1,101 +1,61 @@
 <?php
-// bookie/pembeli/ajax/add_to_cart.php
-error_reporting(E_ALL);
-ini_set('display_errors', 0);
-ob_start();
 session_start();
+error_reporting(0); // Matikan error reporting untuk production
+header('Content-Type: application/json');
 
-header('Content-Type: application/json; charset=utf-8');
-$response = ['success' => false, 'message' => ''];
-
-try {
-    // 1. Validasi session
-    if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'pembeli') {
-        throw new Exception('Silakan login terlebih dahulu');
-    }
-    
-    // 2. Validasi input
-    $product_id = intval($_POST['product_id'] ?? 0);
-    if ($product_id <= 0) throw new Exception('Produk tidak valid');
-    
-    // 3. Cari file database.php
-    // Coba beberapa lokasi
-    $base_dir = dirname(__DIR__, 2); // Dua level naik: C:/xampp/htdocs/bookie/
-    $config_file = $base_dir . '/config/database.php';
-    
-    if (!file_exists($config_file)) {
-        // Coba lokasi lain
-        $config_file = dirname(__DIR__) . '/../config/database.php';
-    }
-    
-    if (!file_exists($config_file)) {
-        throw new Exception('File konfigurasi tidak ditemukan di: ' . $config_file);
-    }
-    
-    // 4. Include config
-    require_once $config_file;
-    
-    if (!isset($conn)) {
-        throw new Exception('Koneksi database gagal');
-    }
-    
-    $pembeli_id = $_SESSION['user']['id'];
-    
-    // 5. Cek produk
-    $stmt = $conn->prepare("SELECT id, stok FROM produk WHERE id = ?");
-    $stmt->bind_param("i", $product_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    if ($result->num_rows === 0) {
-        throw new Exception('Produk tidak ditemukan');
-    }
-    
-    $produk = $result->fetch_assoc();
-    
-    // 6. Cek dan update keranjang
-    $stmt2 = $conn->prepare("SELECT id, qty FROM keranjang WHERE pembeli_id = ? AND produk_id = ?");
-    $stmt2->bind_param("ii", $pembeli_id, $product_id);
-    $stmt2->execute();
-    $cart_result = $stmt2->get_result();
-    
-    if ($cart_result->num_rows > 0) {
-        // Update
-        $cart = $cart_result->fetch_assoc();
-        $new_qty = $cart['qty'] + 1;
-        
-        $stmt3 = $conn->prepare("UPDATE keranjang SET qty = ? WHERE id = ?");
-        $stmt3->bind_param("ii", $new_qty, $cart['id']);
-        $stmt3->execute();
-        
-        $response['message'] = 'Jumlah diperbarui';
-    } else {
-        // Insert baru
-        $stmt3 = $conn->prepare("INSERT INTO keranjang (pembeli_id, produk_id, qty) VALUES (?, ?, 1)");
-        $stmt3->bind_param("ii", $pembeli_id, $product_id);
-        $stmt3->execute();
-        
-        $response['message'] = 'Ditambahkan ke keranjang';
-    }
-    
-    $response['success'] = true;
-    
-    // Hitung total item
-    $stmt4 = $conn->prepare("SELECT COUNT(*) as total FROM keranjang WHERE pembeli_id = ?");
-    $stmt4->bind_param("i", $pembeli_id);
-    $stmt4->execute();
-    $total_result = $stmt4->get_result();
-    $total_data = $total_result->fetch_assoc();
-    
-    $response['total_items'] = $total_data['total'];
-    
-    $conn->close();
-    
-} catch (Exception $e) {
-    $response['message'] = $e->getMessage();
+// Cek login
+if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'pembeli') {
+    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+    exit;
 }
 
-ob_end_clean();
-echo json_encode($response);
-exit;
+// Koneksi database
+require_once "../../config/database.php";
+
+$pembeli_id = (int)$_SESSION['user']['id'];
+$product_id = isset($_POST['product_id']) ? (int)$_POST['product_id'] : 0;
+$qty = isset($_POST['qty']) ? (int)$_POST['qty'] : 1;
+
+if ($product_id <= 0) {
+    echo json_encode(['success' => false, 'message' => 'Produk tidak valid']);
+    exit;
+}
+
+// Cek stok
+$q = mysqli_query($conn, "SELECT stok FROM produk WHERE id='$product_id'");
+if (!$q || mysqli_num_rows($q) == 0) {
+    echo json_encode(['success' => false, 'message' => 'Produk tidak ditemukan']);
+    exit;
+}
+
+$produk = mysqli_fetch_assoc($q);
+if ($produk['stok'] < $qty) {
+    echo json_encode(['success' => false, 'message' => 'Stok tidak cukup']);
+    exit;
+}
+
+// Cek apakah produk sudah ada di keranjang
+$check = mysqli_query($conn, "SELECT id, jumlah FROM keranjang WHERE id_user='$pembeli_id' AND id_produk='$product_id'");
+
+if (mysqli_num_rows($check) > 0) {
+    // Update jumlah
+    $row = mysqli_fetch_assoc($check);
+    $new_qty = $row['jumlah'] + $qty;
+    $update = mysqli_query($conn, "UPDATE keranjang SET jumlah='$new_qty' WHERE id='{$row['id']}'");
+    
+    if ($update) {
+        echo json_encode(['success' => true, 'message' => 'Jumlah produk diperbarui']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Gagal update keranjang']);
+    }
+} else {
+    // Insert baru
+    $insert = mysqli_query($conn, "INSERT INTO keranjang (id_user, id_produk, jumlah) VALUES ('$pembeli_id', '$product_id', '$qty')");
+    
+    if ($insert) {
+        echo json_encode(['success' => true, 'message' => 'Produk ditambahkan ke keranjang']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Gagal menambah ke keranjang']);
+    }
+}
 ?>

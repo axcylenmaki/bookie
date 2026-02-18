@@ -6,10 +6,13 @@ include "../config/database.php";
 if (isset($_SESSION['user']['id'])) {
   $id = (int) $_SESSION['user']['id'];
 
-  // set status offline
+  // set status offline dan clear last_activity
   mysqli_query(
     $conn,
-    "UPDATE users SET status='offline' WHERE id='$id'"
+    "UPDATE users 
+     SET status = 'offline', 
+         last_activity = NULL 
+     WHERE id = '$id'"
   );
 }
 

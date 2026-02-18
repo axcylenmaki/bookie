@@ -8,34 +8,40 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'penjual') {
 include "../config/database.php";
 $idPenjual = $_SESSION['user']['id'];
 
-// Data penjual sudah diambil di sidebar.php
+// Data penjual
 $namaPenjual = $_SESSION['user']['nama'] ?? 'Penjual';
+$fotoUser = $_SESSION['user']['foto'] ?? '';
+
+// Path foto profil
+$fotoPath = (!empty($fotoUser) && file_exists("../uploads/".$fotoUser))
+    ? "../uploads/".$fotoUser
+    : "../assets/img/user.png";
 
 /* =====================
    TAMBAH PRODUK
 ===================== */
 if (isset($_POST['simpan'])) {
-  $nama = htmlspecialchars($_POST['nama']);
-  $kategori = $_POST['kategori'];
+  $nama = mysqli_real_escape_string($conn, htmlspecialchars($_POST['nama']));
+  $pengarang = mysqli_real_escape_string($conn, htmlspecialchars($_POST['pengarang'] ?? ''));
+  $isbn = mysqli_real_escape_string($conn, htmlspecialchars($_POST['isbn'] ?? ''));
+  $kategori = mysqli_real_escape_string($conn, $_POST['kategori']);
   $stok = (int)$_POST['stok'];
   $harga = (int)$_POST['harga'];
   $modal = (int)$_POST['modal'];
-  $deskripsi = htmlspecialchars($_POST['deskripsi']);
-  $penulis = htmlspecialchars($_POST['penulis'] ?? '');
-  $isbn = htmlspecialchars($_POST['isbn'] ?? '');
+  $deskripsi = mysqli_real_escape_string($conn, htmlspecialchars($_POST['deskripsi']));
 
   $margin = $harga - $modal;
-  $untung = $margin * $stok;
+  $keuntungan = $margin * $stok;
 
-  $gambar = null;
+  $namaFile = null;
   if (!empty($_FILES['gambar']['name'])) {
     $ext = strtolower(pathinfo($_FILES['gambar']['name'], PATHINFO_EXTENSION));
     $allowed_ext = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
     
     if (in_array($ext, $allowed_ext)) {
       if ($_FILES['gambar']['size'] <= 2 * 1024 * 1024) { // 2MB max
-        $gambar = "produk_".time()."_".rand(100,999).".".$ext;
-        move_uploaded_file($_FILES['gambar']['tmp_name'], "../uploads/".$gambar);
+        $namaFile = "produk_".time()."_".rand(100,999).".".$ext;
+        move_uploaded_file($_FILES['gambar']['tmp_name'], "../uploads/".$namaFile);
       } else {
         $error = "Ukuran file terlalu besar. Maksimal 2MB.";
       }
@@ -44,15 +50,38 @@ if (isset($_POST['simpan'])) {
     }
   }
 
-  // Hitung keuntungan per unit (bukan total)
-  $keuntungan_per_unit = $margin;
-
   if (!isset($error)) {
-    mysqli_query($conn,"INSERT INTO produk 
-      (penjual_id, kategori_id, isbn, nama_buku, penulis, deskripsi, gambar, stok, harga, modal, margin, keuntungan, created_at)
-      VALUES
-      ('$idPenjual', '$kategori', '$isbn', '$nama', '$penulis', '$deskripsi', '$gambar', '$stok', '$harga', '$modal', '$margin', '$keuntungan_per_unit', NOW())
-    ");
+    $query = "INSERT INTO produk (
+        id_penjual, 
+        kategori_id, 
+        nama_produk, 
+        pengarang, 
+        isbn, 
+        deskripsi, 
+        gambar, 
+        stok, 
+        harga, 
+        modal, 
+        margin, 
+        keuntungan, 
+        created_at
+      ) VALUES (
+        '$idPenjual', 
+        '$kategori', 
+        '$nama', 
+        '$pengarang', 
+        '$isbn', 
+        '$deskripsi', 
+        " . ($namaFile ? "'$namaFile'" : "NULL") . ", 
+        '$stok', 
+        '$harga', 
+        '$modal', 
+        '$margin', 
+        '$keuntungan', 
+        NOW()
+      )";
+    
+    mysqli_query($conn, $query);
 
     header("Location: produk.php?success=1");
     exit;
@@ -61,405 +90,1313 @@ if (isset($_POST['simpan'])) {
 
 $qKategori = mysqli_query($conn,"SELECT * FROM kategori ORDER BY nama_kategori");
 ?>
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tambah Produk Baru - BOOKIE</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-<!-- Include CSS sidebar -->
-<link rel="stylesheet" href="includes/sidebar.css">
+
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 
 <style>
-/* CSS khusus untuk halaman tambah produk */
+/* =====================
+   RESET & GLOBAL
+===================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f8f9fa;
+    min-height: 100vh;
+    display: flex;
+}
+
+/* =====================
+   SIDEBAR (COPY DARI DASHBOARD)
+===================== */
+.sidebar {
+    width: 260px;
+    height: 100vh;
+    background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+    color: #fff;
+    position: fixed;
+    left: 0;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    transition: all 0.3s ease;
+}
+
+/* LOGO */
+.sidebar-logo {
+    padding: 20px;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 800;
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    letter-spacing: 1px;
+    color: #fff;
+}
+
+/* PROFIL */
+.sidebar-profile {
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    text-decoration: none;
+    color: #fff;
+    transition: all 0.3s ease;
+}
+
+.sidebar-profile:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateX(5px);
+}
+
+.sidebar-profile img {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-profile .name {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.sidebar-profile .role {
+    font-size: 12px;
+    color: #95a5a6;
+    margin-top: 2px;
+}
+
+/* MENU */
+.sidebar-menu {
+    flex: 1;
+    padding: 15px 0;
+    overflow-y: auto;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 14px 20px;
+    color: #bdc3c7;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    margin: 2px 10px;
+    border-radius: 8px;
+}
+
+.menu-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    transform: translateX(8px);
+}
+
+.menu-item.active {
+    background: linear-gradient(90deg, #3498db, #2980b9);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.menu-item i {
+    font-size: 18px;
+    width: 24px;
+    text-align: center;
+}
+
+.menu-badge {
+    margin-left: auto;
+    background: #e74c3c;
+    color: white;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+/* FOOTER */
+.sidebar-footer {
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 12px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    margin-bottom: 8px;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+}
+
+.logout {
+    background: linear-gradient(90deg, #e74c3c, #c0392b);
+    color: white;
+}
+
+.logout:hover {
+    background: linear-gradient(90deg, #c0392b, #a93226);
+    transform: translateY(-2px);
+}
+
+.help {
+    background: transparent;
+    border: 2px solid #3498db;
+    color: #3498db;
+}
+
+.help:hover {
+    background: rgba(52, 152, 219, 0.1);
+    transform: translateY(-2px);
+}
+
+/* =====================
+   TOP BAR
+===================== */
+.top-bar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 260px;
+    height: 70px;
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    z-index: 999;
+    transition: left 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Search Bar */
+.search-container {
+    flex: 1;
+    max-width: 500px;
+    position: relative;
+}
+
+.search-box {
+    width: 100%;
+    padding: 12px 20px 12px 45px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: #f8fafc;
+}
+
+.search-box:focus {
+    outline: none;
+    border-color: #3498db;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.search-icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    font-size: 18px;
+}
+
+/* Top Bar Right */
+.top-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+/* User Profile in Top Bar */
+.user-profile-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    text-decoration: none;
+    color: #1e293b;
+}
+
+.user-profile-top:hover {
+    background: #f1f5f9;
+}
+
+.user-profile-top img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e2e8f0;
+}
+
+.user-info-top .name {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.user-info-top .role {
+    font-size: 12px;
+    color: #64748b;
+}
+
+/* =====================
+   MAIN CONTENT
+===================== */
+.main-content {
+    flex: 1;
+    margin-left: 260px;
+    margin-top: 70px;
+    padding: 24px;
+    min-height: calc(100vh - 70px);
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+/* =====================
+   HERO SECTION
+===================== */
+.hero {
+    background: linear-gradient(135deg, #020617, #1e3a8a);
+    color: #fff;
+    border-radius: 20px;
+    padding: 32px;
+    margin-bottom: 24px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.hero h2 {
+    margin: 0 0 8px;
+    font-size: 26px;
+    font-weight: 700;
+}
+
+.hero p {
+    max-width: 520px;
+    opacity: .9;
+    font-size: 16px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+/* =====================
+   ALERTS
+===================== */
+.alert {
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.alert-success {
+    background: rgba(46, 204, 113, 0.1);
+    color: #27ae60;
+    border-left: 4px solid #2ecc71;
+}
+
+.alert-danger {
+    background: rgba(231, 76, 60, 0.1);
+    color: #c0392b;
+    border-left: 4px solid #e74c3c;
+}
+
+/* =====================
+   FORM CONTAINER
+===================== */
 .form-container {
-  max-width: 900px;
-  margin: 0 auto;
-  background: white;
-  border-radius: 12px;
-  padding: 30px;
-  box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-  border: 1px solid #e0e0e0;
+    background: #fff;
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
 }
-.form-label {
-  font-weight: 600;
-  color: #495057;
-  margin-bottom: 8px;
-}
-.form-label.required:after {
-  content: " *";
-  color: #dc3545;
-}
-.calculation-card {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 15px;
-  border-left: 4px solid #3498db;
-}
-.preview-image {
-  max-height: 200px;
-  object-fit: cover;
-  border-radius: 8px;
-  border: 2px dashed #dee2e6;
-  padding: 5px;
-}
-.back-btn {
-  background-color: #6c757d;
-  color: white;
-  border: none;
-  padding: 8px 20px;
-  border-radius: 6px;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  transition: background-color 0.3s;
-}
-.back-btn:hover {
-  background-color: #5a6268;
-  color: white;
-}
-.alert-custom {
-  border-radius: 8px;
-  border: none;
-}
-.input-group-text-custom {
-  background-color: #e9ecef;
-  border: 1px solid #ced4da;
-}
+
+/* =====================
+   FORM SECTIONS
+===================== */
 .form-section {
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #e9ecef;
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid #f1f5f9;
 }
+
 .form-section:last-child {
-  border-bottom: none;
+    border-bottom: none;
+    margin-bottom: 0;
 }
-.form-section h5 {
-  color: #2c3e50;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #f1f1f1;
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
 }
-.form-control:focus, .form-select:focus {
-  border-color: #3498db;
-  box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+
+.section-header i {
+    color: #3498db;
+    font-size: 20px;
 }
+
+.section-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #020617;
+}
+
+/* =====================
+   FORM CONTROLS
+===================== */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+@media (max-width: 768px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #374151;
+    font-size: 14px;
+}
+
+.form-label.required::after {
+    content: " *";
+    color: #e74c3c;
+}
+
+.form-label.optional::after {
+    content: " (Opsional)";
+    color: #64748b;
+    font-weight: 400;
+    font-size: 12px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: #f8fafc;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #3498db;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+textarea.form-control {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.input-group {
+    display: flex;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.input-group .form-control {
+    border-radius: 0 10px 10px 0;
+    border-left: none;
+}
+
+.input-group-prepend {
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    background: #f1f5f9;
+    border: 2px solid #e2e8f0;
+    border-right: none;
+    border-radius: 10px 0 0 10px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+/* =====================
+   CALCULATION CARD
+===================== */
+.calculation-card {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 20px;
+    border-left: 4px solid #3498db;
+    margin-top: 20px;
+}
+
 .calculation-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #e2e8f0;
 }
+
 .calculation-item:last-child {
-  border-bottom: none;
-  font-weight: 600;
-  color: #2c3e50;
-  padding-top: 12px;
+    border-bottom: none;
+    padding-top: 15px;
+    font-weight: 700;
+    color: #020617;
+}
+
+.calculation-label {
+    color: #64748b;
+}
+
+.calculation-value {
+    font-weight: 600;
+    color: #020617;
+}
+
+.calculation-value.success {
+    color: #2ecc71;
+}
+
+.calculation-value.danger {
+    color: #e74c3c;
+}
+
+.calculation-value.info {
+    color: #3498db;
+}
+
+/* =====================
+   IMAGE UPLOAD
+===================== */
+.image-upload {
+    margin-top: 15px;
+}
+
+.file-input {
+    position: relative;
+}
+
+.file-input input[type="file"] {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.file-label {
+    display: block;
+    padding: 20px;
+    border: 2px dashed #cbd5e1;
+    border-radius: 10px;
+    text-align: center;
+    color: #64748b;
+    transition: all 0.3s ease;
+    background: #f8fafc;
+}
+
+.file-label:hover {
+    border-color: #3498db;
+    color: #3498db;
+}
+
+.file-label i {
+    font-size: 32px;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.image-preview {
+    margin-top: 20px;
+    text-align: center;
+}
+
+.preview-img {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 10px;
+    border: 2px solid #e2e8f0;
+    display: none;
+}
+
+/* =====================
+   FORM ACTIONS
+===================== */
+.form-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+    padding-top: 24px;
+    border-top: 1px solid #e2e8f0;
+    justify-content: flex-end;
+}
+
+.btn {
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #3498db;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+}
+
+.btn-secondary {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.btn-secondary:hover {
+    background: #e2e8f0;
+    transform: translateY(-2px);
+}
+
+/* =====================
+   RESPONSIVE DESIGN
+===================== */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 70px;
+        transform: translateX(-100%);
+    }
+    
+    .sidebar.active {
+        transform: translateX(0);
+    }
+    
+    .top-bar {
+        left: 0;
+    }
+    
+    .main-content {
+        margin-left: 0;
+        margin-top: 70px;
+    }
+    
+    .menu-toggle {
+        display: flex !important;
+    }
+    
+    .sidebar-logo span,
+    .sidebar-profile > div,
+    .menu-item span,
+    .menu-badge,
+    .footer-btn span {
+        display: none;
+    }
+    
+    .sidebar.active .sidebar-logo span,
+    .sidebar.active .sidebar-profile > div,
+    .sidebar.active .menu-item span,
+    .sidebar.active .menu-badge,
+    .sidebar.active .footer-btn span {
+        display: block;
+    }
+    
+    .search-container {
+        display: none;
+    }
+    
+    .search-container.active {
+        display: block;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        padding: 10px;
+        background: white;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    
+    .hero {
+        padding: 20px;
+    }
+    
+    .form-container {
+        padding: 20px;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .top-bar {
+        padding: 0 12px;
+    }
+    
+    .user-info-top {
+        display: none;
+    }
+    
+    .main-content {
+        padding: 16px;
+    }
+}
+
+/* =====================
+   UTILITY CLASSES
+===================== */
+.menu-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: #f1f5f9;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 20px;
+    color: #64748b;
+    transition: all 0.3s ease;
+}
+
+.menu-toggle:hover {
+    background: #e2e8f0;
+    color: #3498db;
+}
+
+.search-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: none;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 20px;
+    color: #64748b;
+    transition: all 0.3s ease;
+}
+
+.search-toggle:hover {
+    background: #f1f5f9;
+    color: #3498db;
+}
+
+.text-muted {
+    color: #64748b !important;
+    font-size: 12px;
+    margin-top: 4px;
+    display: block;
+}
+
+.mb-3 {
+    margin-bottom: 1rem;
 }
 </style>
 </head>
 
-<body class="bg-light">
-<div class="container-fluid">
-<div class="row">
-    
-<!-- INCLUDE SIDEBAR -->
-<?php include "includes/sidebar.php"; ?>
+<body>
 
-<!-- CONTENT -->
-<div class="col-10 p-4">
-<div class="d-flex justify-content-between align-items-center mb-4">
-<div>
-  <h3 class="mb-1">Tambah Produk Baru</h3>
-  <p class="text-muted mb-0">Isi informasi produk buku yang akan dijual</p>
-</div>
-<a href="produk.php" class="back-btn">
-  <i class="bi bi-arrow-left"></i> Kembali ke Daftar Produk
-</a>
-</div>
-
-<?php if(isset($error)): ?>
-<div class="alert alert-danger alert-custom mb-4">
-  <i class="bi bi-exclamation-triangle me-2"></i>
-  <?= $error ?>
-</div>
-<?php endif; ?>
-
-<?php if(isset($_GET['success'])): ?>
-<div class="alert alert-success alert-custom mb-4">
-  <i class="bi bi-check-circle me-2"></i>
-  Produk berhasil ditambahkan!
-</div>
-<?php endif; ?>
-
-<div class="form-container">
-<form method="POST" enctype="multipart/form-data" id="productForm">
-<div class="row g-4">
-  
-  <!-- INFORMASI PRODUK -->
-  <div class="col-md-12 form-section">
-    <h5><i class="bi bi-info-circle me-2"></i> Informasi Produk</h5>
-    
-    <div class="row g-3">
-      <div class="col-md-12">
-        <label class="form-label required">Nama Buku</label>
-        <input type="text" name="nama" class="form-control" required 
-               placeholder="Masukkan nama buku" maxlength="150">
-        <small class="text-muted">Maksimal 150 karakter</small>
-      </div>
-
-      <div class="col-md-6">
-        <label class="form-label">Penulis (Opsional)</label>
-        <input type="text" name="penulis" class="form-control" 
-               placeholder="Nama pengarang" maxlength="150">
-      </div>
-
-      <div class="col-md-6">
-        <label class="form-label">ISBN (Opsional)</label>
-        <input type="text" name="isbn" class="form-control" 
-               placeholder="Nomor ISBN" maxlength="20">
-      </div>
-
-      <div class="col-md-6">
-        <label class="form-label required">Kategori</label>
-        <select name="kategori" class="form-select" required>
-          <option value="">Pilih Kategori</option>
-          <?php while($k = mysqli_fetch_assoc($qKategori)): ?>
-          <option value="<?= $k['id'] ?>"><?= htmlspecialchars($k['nama_kategori']) ?></option>
-          <?php endwhile; ?>
-        </select>
-      </div>
-
-      <div class="col-md-6">
-        <label class="form-label required">Stok Awal</label>
-        <div class="input-group">
-          <input type="number" name="stok" class="form-control" min="0" required 
-                 value="1" id="stokInput">
-          <span class="input-group-text input-group-text-custom">unit</span>
-        </div>
-      </div>
-
-      <div class="col-md-12">
-        <label class="form-label">Deskripsi Produk</label>
-        <textarea name="deskripsi" class="form-control" rows="4" 
-                  placeholder="Deskripsikan produk buku Anda..."
-                  maxlength="1000"></textarea>
-        <small class="text-muted">Maksimal 1000 karakter</small>
-      </div>
+<!-- SIDEBAR -->
+<div class="sidebar" id="sidebar">
+    <!-- LOGO -->
+    <div class="sidebar-logo">
+        <span>📚 BOOKIE</span>
     </div>
-  </div>
 
-  <!-- GAMBAR PRODUK -->
-  <div class="col-md-12 form-section">
-    <h5><i class="bi bi-image me-2"></i> Gambar Produk</h5>
-    
-    <div class="row g-3">
-      <div class="col-md-12">
-        <label class="form-label">Upload Gambar (Opsional)</label>
-        <input type="file" name="gambar" class="form-control" accept="image/*" id="imageInput">
-        <small class="text-muted d-block mt-1">
-          Format: JPG, PNG, GIF, WebP | Maksimal: 2MB
-        </small>
-      </div>
-      
-      <div class="col-md-12">
-        <div id="imagePreview" class="d-none mt-3 text-center">
-          <p class="text-muted mb-2">Pratinjau Gambar:</p>
-          <img id="preview" class="preview-image" src="" alt="Preview">
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- HARGA DAN KALKULASI -->
-  <div class="col-md-12 form-section">
-    <h5><i class="bi bi-cash-stack me-2"></i> Harga & Kalkulasi</h5>
-    
-    <div class="row g-4">
-      <div class="col-md-6">
-        <div class="mb-4">
-          <label class="form-label required">Harga Modal (per unit)</label>
-          <div class="input-group">
-            <span class="input-group-text input-group-text-custom">Rp</span>
-            <input type="number" name="modal" class="form-control" min="0" required 
-                   value="0" id="modalInput">
-          </div>
-          <small class="text-muted">Harga beli produk dari supplier</small>
-        </div>
-        
+    <!-- PROFIL -->
+    <a href="profile.php" class="sidebar-profile">
+        <img src="<?= htmlspecialchars($fotoPath) ?>" alt="Profile">
         <div>
-          <label class="form-label required">Harga Jual (per unit)</label>
-          <div class="input-group">
-            <span class="input-group-text input-group-text-custom">Rp</span>
-            <input type="number" name="harga" class="form-control" min="0" required 
-                   value="0" id="hargaInput">
-          </div>
-          <small class="text-muted">Harga yang akan dibayar pembeli</small>
+            <div class="name"><?= htmlspecialchars($namaPenjual) ?></div>
+            <div class="role">Penjual</div>
         </div>
-      </div>
-      
-      <div class="col-md-6">
-        <div class="calculation-card">
-          <h6 class="mb-3">Kalkulasi Keuntungan</h6>
-          
-          <div class="calculation-item">
-            <span>Harga Modal:</span>
-            <strong id="modalDisplay">Rp 0</strong>
-          </div>
-          
-          <div class="calculation-item">
-            <span>Harga Jual:</span>
-            <strong id="hargaDisplay">Rp 0</strong>
-          </div>
-          
-          <div class="calculation-item">
-            <span>Margin per Unit:</span>
-            <strong class="text-info" id="marginDisplay">Rp 0</strong>
-          </div>
-          
-          <div class="calculation-item">
-            <span>Stok:</span>
-            <strong id="stokDisplay">1 unit</strong>
-          </div>
-          
-          <div class="calculation-item">
-            <span>Total Keuntungan Potensial:</span>
-            <strong class="text-success" id="keuntunganDisplay">Rp 0</strong>
-          </div>
-        </div>
-      </div>
+    </a>
+
+    <!-- MENU SCROLLABLE -->
+    <div class="sidebar-menu">
+        <a href="dashboard.php" class="menu-item">
+            <i class="bi bi-speedometer2"></i>
+            <span>Dashboard</span>
+        </a>
+        
+        <a href="profile.php" class="menu-item">
+            <i class="bi bi-person"></i>
+            <span>Profile</span>
+        </a>
+        
+        <a href="produk.php" class="menu-item active">
+            <i class="bi bi-box"></i>
+            <span>Produk</span>
+        </a>
+        
+        <a href="chat.php" class="menu-item">
+            <i class="bi bi-chat-dots"></i>
+            <span>Chat</span>
+        </a>
+        
+        <a href="pesanan.php" class="menu-item">
+            <i class="bi bi-receipt"></i>
+            <span>Pesanan</span>
+        </a>
+        
+        <a href="status.php" class="menu-item">
+            <i class="bi bi-activity"></i>
+            <span>Status</span>
+        </a>
+        
+        <a href="laporan.php" class="menu-item">
+            <i class="bi bi-bar-chart"></i>
+            <span>Laporan</span>
+        </a>
+        
+        <a href="penjual_lain.php" class="menu-item">
+            <i class="bi bi-people"></i>
+            <span>Penjual Lain</span>
+        </a>
     </div>
-  </div>
 
-  <!-- TOMBOL AKSI -->
-  <div class="col-md-12">
-    <div class="d-grid gap-3 d-md-flex justify-content-md-end">
-      <a href="produk.php" class="btn btn-outline-secondary px-4">
-        <i class="bi bi-x-circle me-1"></i> Batal
-      </a>
-      <button type="submit" name="simpan" class="btn btn-primary px-4">
-        <i class="bi bi-check-circle me-1"></i> Simpan Produk
-      </button>
+    <!-- FOOTER -->
+    <div class="sidebar-footer">
+        <button class="footer-btn logout" onclick="logout()">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Logout</span>
+        </button>
+        
+        <a href="help.php" class="footer-btn help">
+            <i class="bi bi-question-circle"></i>
+            <span>Help & FAQ</span>
+        </a>
     </div>
-  </div>
-
-</div>
-</form>
 </div>
 
-</div>
-</div>
+<!-- TOP BAR -->
+<div class="top-bar" id="topBar">
+    <!-- Menu Toggle (Mobile) -->
+    <button class="menu-toggle" id="menuToggle">
+        <i class="bi bi-list"></i>
+    </button>
+    
+    <!-- Search Bar -->
+    <div class="search-container" id="searchContainer">
+        <i class="bi bi-search search-icon"></i>
+        <input type="text" class="search-box" placeholder="Cari produk, pesanan, atau pelanggan...">
+    </div>
+    
+    <!-- Search Toggle (Mobile) -->
+    <button class="search-toggle" id="searchToggle">
+        <i class="bi bi-search"></i>
+    </button>
+    
+    <!-- Right Section -->
+    <div class="top-bar-right">
+        <!-- User Profile -->
+        <a href="profile.php" class="user-profile-top">
+            <img src="<?= htmlspecialchars($fotoPath) ?>" alt="Profile">
+            <div class="user-info-top">
+                <div class="name"><?= htmlspecialchars($namaPenjual) ?></div>
+                <div class="role">Penjual</div>
+            </div>
+        </a>
+    </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- MAIN CONTENT -->
+<div class="main-content" id="mainContent">
+    <!-- ALERTS -->
+    <?php if(isset($error)): ?>
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span><?= $error ?></span>
+    </div>
+    <?php endif; ?>
+
+    <!-- HERO -->
+    <div class="hero">
+        <h2>Tambah Produk Baru</h2>
+        <p>
+            Isi informasi produk buku yang akan dijual. Pastikan semua data diisi dengan benar.
+        </p>
+    </div>
+
+    <!-- FORM CONTAINER -->
+    <div class="form-container">
+        <form method="POST" enctype="multipart/form-data" id="productForm">
+            <!-- INFORMASI PRODUK -->
+            <div class="form-section">
+                <div class="section-header">
+                    <i class="bi bi-info-circle"></i>
+                    <h3>Informasi Produk</h3>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="nama" class="form-label required">Nama Produk</label>
+                        <input type="text" id="nama" name="nama" class="form-control" required 
+                               placeholder="Masukkan nama produk" maxlength="150">
+                        <span class="text-muted">Maksimal 150 karakter</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pengarang" class="form-label optional">Pengarang</label>
+                        <input type="text" id="pengarang" name="pengarang" class="form-control" 
+                               placeholder="Nama pengarang" maxlength="100">
+                        <span class="text-muted">Opsional</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="isbn" class="form-label optional">ISBN</label>
+                        <input type="text" id="isbn" name="isbn" class="form-control" 
+                               placeholder="Nomor ISBN" maxlength="20">
+                        <span class="text-muted">Opsional</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="kategori" class="form-label required">Kategori</label>
+                        <select id="kategori" name="kategori" class="form-control" required>
+                            <option value="">Pilih Kategori</option>
+                            <?php 
+                            mysqli_data_seek($qKategori, 0);
+                            while($k = mysqli_fetch_assoc($qKategori)): 
+                            ?>
+                            <option value="<?= $k['id'] ?>"><?= htmlspecialchars($k['nama_kategori']) ?></option>
+                            <?php endwhile; ?>
+                        </select>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="deskripsi" class="form-label">Deskripsi Produk</label>
+                        <textarea id="deskripsi" name="deskripsi" class="form-control" rows="4"
+                                  placeholder="Deskripsikan produk Anda..."
+                                  maxlength="1000"></textarea>
+                        <span class="text-muted">Maksimal 1000 karakter</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HARGA DAN KALKULASI -->
+            <div class="form-section">
+                <div class="section-header">
+                    <i class="bi bi-cash-stack"></i>
+                    <h3>Harga & Kalkulasi</h3>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="modal" class="form-label required">Harga Modal (per unit)</label>
+                        <div class="input-group">
+                            <div class="input-group-prepend">Rp</div>
+                            <input type="number" id="modal" name="modal" class="form-control" 
+                                   min="0" required value="0">
+                        </div>
+                        <span class="text-muted">Harga beli dari supplier</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="harga" class="form-label required">Harga Jual (per unit)</label>
+                        <div class="input-group">
+                            <div class="input-group-prepend">Rp</div>
+                            <input type="number" id="harga" name="harga" class="form-control" 
+                                   min="0" required value="0">
+                        </div>
+                        <span class="text-muted">Harga yang dibayar pembeli</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="stok" class="form-label required">Stok</label>
+                        <input type="number" id="stok" name="stok" class="form-control" 
+                               min="0" required value="1">
+                    </div>
+                </div>
+                
+                <!-- KALKULASI -->
+                <div class="calculation-card">
+                    <h4 class="mb-3">Kalkulasi Keuntungan</h4>
+                    
+                    <div class="calculation-item">
+                        <span class="calculation-label">Harga Modal:</span>
+                        <span class="calculation-value" id="modalDisplay">Rp 0</span>
+                    </div>
+                    
+                    <div class="calculation-item">
+                        <span class="calculation-label">Harga Jual:</span>
+                        <span class="calculation-value" id="hargaDisplay">Rp 0</span>
+                    </div>
+                    
+                    <div class="calculation-item">
+                        <span class="calculation-label">Margin per Unit:</span>
+                        <span class="calculation-value info" id="marginDisplay">Rp 0</span>
+                    </div>
+                    
+                    <div class="calculation-item">
+                        <span class="calculation-label">Stok:</span>
+                        <span class="calculation-value" id="stokDisplay">1 unit</span>
+                    </div>
+                    
+                    <div class="calculation-item">
+                        <span class="calculation-label">Total Keuntungan Potensial:</span>
+                        <span class="calculation-value success" id="keuntunganDisplay">Rp 0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GAMBAR PRODUK -->
+            <div class="form-section">
+                <div class="section-header">
+                    <i class="bi bi-image"></i>
+                    <h3>Gambar Produk</h3>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label optional">Upload Gambar</label>
+                    <div class="file-input">
+                        <input type="file" id="gambar" name="gambar" accept="image/*">
+                        <label for="gambar" class="file-label">
+                            <i class="bi bi-cloud-arrow-up"></i>
+                            <span>Klik untuk upload gambar produk</span>
+                            <small>JPG, PNG, GIF, WebP (Maks. 2MB)</small>
+                        </label>
+                    </div>
+                    <span class="text-muted">Format: JPG, PNG, GIF, WebP (Maks. 2MB)</span>
+                </div>
+                
+                <div class="image-preview">
+                    <img id="preview" class="preview-img" alt="Preview Gambar">
+                </div>
+            </div>
+
+            <!-- FORM ACTIONS -->
+            <div class="form-actions">
+                <a href="produk.php" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Kembali
+                </a>
+                <button type="submit" name="simpan" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> Simpan Produk
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
-// Kalkulasi keuntungan real-time
+// DOM Elements
+const sidebar = document.getElementById('sidebar');
+const menuToggle = document.getElementById('menuToggle');
+const topBar = document.getElementById('topBar');
+const mainContent = document.getElementById('mainContent');
+const searchContainer = document.getElementById('searchContainer');
+const searchToggle = document.getElementById('searchToggle');
+const productForm = document.getElementById('productForm');
+const modalInput = document.getElementById('modal');
+const hargaInput = document.getElementById('harga');
+const stokInput = document.getElementById('stok');
+const gambarInput = document.getElementById('gambar');
+const previewImg = document.getElementById('preview');
+const submitBtn = productForm.querySelector('button[type="submit"]');
+
+// Menu Toggle
+menuToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('active');
+});
+
+// Search Toggle (Mobile)
+searchToggle.addEventListener('click', () => {
+    searchContainer.classList.toggle('active');
+});
+
+// Image Preview
+gambarInput.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    
+    if (file) {
+        // Validasi ukuran file
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Ukuran file terlalu besar. Maksimal 2MB.');
+            this.value = '';
+            previewImg.style.display = 'none';
+            return;
+        }
+        
+        // Validasi tipe file
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            alert('Format file tidak didukung. Gunakan JPG, PNG, GIF, atau WebP.');
+            this.value = '';
+            previewImg.style.display = 'none';
+            return;
+        }
+        
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            previewImg.style.display = 'block';
+        }
+        
+        reader.readAsDataURL(file);
+    } else {
+        previewImg.style.display = 'none';
+    }
+});
+
+// Kalkulasi keuntungan
 function calculateProfit() {
-  const modal = parseInt(document.getElementById('modalInput').value) || 0;
-  const harga = parseInt(document.getElementById('hargaInput').value) || 0;
-  const stok = parseInt(document.getElementById('stokInput').value) || 0;
-  
-  const margin = harga - modal;
-  const totalKeuntungan = margin * stok;
-  
-  // Update display
-  document.getElementById('modalDisplay').textContent = 'Rp ' + modal.toLocaleString('id-ID');
-  document.getElementById('hargaDisplay').textContent = 'Rp ' + harga.toLocaleString('id-ID');
-  document.getElementById('marginDisplay').textContent = 'Rp ' + margin.toLocaleString('id-ID');
-  document.getElementById('stokDisplay').textContent = stok + ' unit';
-  document.getElementById('keuntunganDisplay').textContent = 'Rp ' + totalKeuntungan.toLocaleString('id-ID');
-  
-  // Warna margin
-  const marginDisplay = document.getElementById('marginDisplay');
-  if (margin > 0) {
-    marginDisplay.className = 'text-success';
-  } else if (margin < 0) {
-    marginDisplay.className = 'text-danger';
-  } else {
-    marginDisplay.className = 'text-secondary';
-  }
+    const modal = parseInt(modalInput.value) || 0;
+    const harga = parseInt(hargaInput.value) || 0;
+    const stok = parseInt(stokInput.value) || 0;
+    
+    const margin = harga - modal;
+    const totalKeuntungan = margin * stok;
+    
+    // Update display
+    document.getElementById('modalDisplay').textContent = formatRupiah(modal);
+    document.getElementById('hargaDisplay').textContent = formatRupiah(harga);
+    document.getElementById('marginDisplay').textContent = formatRupiah(margin);
+    document.getElementById('stokDisplay').textContent = stok + ' unit';
+    document.getElementById('keuntunganDisplay').textContent = formatRupiah(totalKeuntungan);
+    
+    // Update margin color
+    const marginDisplay = document.getElementById('marginDisplay');
+    if (margin > 0) {
+        marginDisplay.className = 'calculation-value success';
+    } else if (margin < 0) {
+        marginDisplay.className = 'calculation-value danger';
+    } else {
+        marginDisplay.className = 'calculation-value info';
+    }
+    
+    // Update keuntungan color
+    const keuntunganDisplay = document.getElementById('keuntunganDisplay');
+    if (totalKeuntungan > 0) {
+        keuntunganDisplay.className = 'calculation-value success';
+    } else if (totalKeuntungan < 0) {
+        keuntunganDisplay.className = 'calculation-value danger';
+    } else {
+        keuntunganDisplay.className = 'calculation-value';
+    }
 }
 
-// Preview gambar
-document.getElementById('imageInput').addEventListener('change', function(e) {
-  const preview = document.getElementById('preview');
-  const previewContainer = document.getElementById('imagePreview');
-  const file = e.target.files[0];
-  
-  if (file) {
-    const reader = new FileReader();
-    
-    reader.onload = function(e) {
-      preview.src = e.target.result;
-      previewContainer.classList.remove('d-none');
-    }
-    
-    reader.readAsDataURL(file);
-  } else {
-    previewContainer.classList.add('d-none');
-  }
-});
+// Format Rupiah
+function formatRupiah(angka) {
+    return 'Rp ' + angka.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
 
-// Validasi harga tidak boleh lebih rendah dari modal
-document.getElementById('hargaInput').addEventListener('input', function() {
-  const modal = parseInt(document.getElementById('modalInput').value) || 0;
-  const harga = parseInt(this.value) || 0;
-  
-  if (harga < modal) {
-    this.classList.add('is-invalid');
-    document.querySelector('button[type="submit"]').disabled = true;
+// Validasi harga
+function validatePrice() {
+    const modal = parseInt(modalInput.value) || 0;
+    const harga = parseInt(hargaInput.value) || 0;
     
-    // Tampilkan pesan error
-    let errorMsg = this.nextElementSibling;
-    if (!errorMsg || !errorMsg.classList.contains('invalid-feedback')) {
-      errorMsg = document.createElement('div');
-      errorMsg.className = 'invalid-feedback';
-      this.parentNode.appendChild(errorMsg);
+    if (harga < modal) {
+        hargaInput.classList.add('is-invalid');
+        
+        // Tampilkan pesan error
+        let errorMsg = hargaInput.nextElementSibling;
+        if (!errorMsg || !errorMsg.classList.contains('invalid-feedback')) {
+            errorMsg = document.createElement('div');
+            errorMsg.className = 'invalid-feedback';
+            hargaInput.parentNode.appendChild(errorMsg);
+        }
+        errorMsg.textContent = 'Harga jual tidak boleh lebih rendah dari harga modal';
+        
+        submitBtn.disabled = true;
+        return false;
+    } else {
+        hargaInput.classList.remove('is-invalid');
+        
+        // Hapus pesan error jika ada
+        const errorMsg = hargaInput.nextElementSibling;
+        if (errorMsg && errorMsg.classList.contains('invalid-feedback')) {
+            errorMsg.remove();
+        }
+        
+        submitBtn.disabled = false;
+        return true;
     }
-    errorMsg.textContent = 'Harga jual tidak boleh lebih rendah dari harga modal';
-  } else {
-    this.classList.remove('is-invalid');
-    document.querySelector('button[type="submit"]').disabled = false;
-  }
-  
-  calculateProfit();
-});
+}
 
 // Event listeners untuk kalkulasi
-document.getElementById('modalInput').addEventListener('input', calculateProfit);
-document.getElementById('hargaInput').addEventListener('input', calculateProfit);
-document.getElementById('stokInput').addEventListener('input', calculateProfit);
-
-// Validasi form sebelum submit
-document.getElementById('productForm').addEventListener('submit', function(e) {
-  const modal = parseInt(document.getElementById('modalInput').value) || 0;
-  const harga = parseInt(document.getElementById('hargaInput').value) || 0;
-  
-  if (harga < modal) {
-    e.preventDefault();
-    alert('Harga jual tidak boleh lebih rendah dari harga modal!');
-    document.getElementById('hargaInput').focus();
-    return false;
-  }
-  
-  if (harga <= 0 || modal < 0) {
-    e.preventDefault();
-    alert('Harga harus lebih dari 0 dan modal tidak boleh negatif!');
-    return false;
-  }
-  
-  // Konfirmasi sebelum submit
-  if (!confirm('Simpan produk ini?')) {
-    e.preventDefault();
-    return false;
-  }
+modalInput.addEventListener('input', () => {
+    calculateProfit();
+    validatePrice();
 });
 
-// Initialize calculation on page load
-document.addEventListener('DOMContentLoaded', calculateProfit);
+hargaInput.addEventListener('input', () => {
+    calculateProfit();
+    validatePrice();
+});
+
+stokInput.addEventListener('input', calculateProfit);
+
+// Form validation
+productForm.addEventListener('submit', function(e) {
+    const nama = document.getElementById('nama').value.trim();
+    const kategori = document.getElementById('kategori').value;
+    const modal = parseInt(modalInput.value) || 0;
+    const harga = parseInt(hargaInput.value) || 0;
+    const stok = parseInt(stokInput.value) || 0;
+    
+    // Validasi dasar
+    if (!nama) {
+        e.preventDefault();
+        alert('Nama produk harus diisi!');
+        document.getElementById('nama').focus();
+        return false;
+    }
+    
+    if (!kategori) {
+        e.preventDefault();
+        alert('Kategori harus dipilih!');
+        document.getElementById('kategori').focus();
+        return false;
+    }
+    
+    if (stok < 0) {
+        e.preventDefault();
+        alert('Stok tidak boleh negatif!');
+        stokInput.focus();
+        return false;
+    }
+    
+    if (modal < 0) {
+        e.preventDefault();
+        alert('Harga modal tidak boleh negatif!');
+        modalInput.focus();
+        return false;
+    }
+    
+    if (harga < 0) {
+        e.preventDefault();
+        alert('Harga jual tidak boleh negatif!');
+        hargaInput.focus();
+        return false;
+    }
+    
+    if (harga < modal) {
+        e.preventDefault();
+        alert('Harga jual tidak boleh lebih rendah dari harga modal!');
+        hargaInput.focus();
+        return false;
+    }
+    
+    // Konfirmasi sebelum submit
+    if (!confirm('Simpan produk baru ini?')) {
+        e.preventDefault();
+        return false;
+    }
+    
+    return true;
+});
+
+// Responsive adjustments
+function handleResize() {
+    if (window.innerWidth <= 768) {
+        menuToggle.style.display = 'flex';
+        searchToggle.style.display = 'flex';
+    } else {
+        menuToggle.style.display = 'none';
+        searchToggle.style.display = 'none';
+        searchContainer.classList.remove('active');
+        sidebar.classList.remove('active');
+    }
+}
+
+window.addEventListener('resize', handleResize);
+
+// Search functionality
+const searchBox = document.querySelector('.search-box');
+searchBox.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        const query = searchBox.value.trim();
+        if (query) {
+            window.location.href = `produk.php?cari=${encodeURIComponent(query)}`;
+        }
+    }
+});
+
+// Logout function
+function logout() {
+    if (confirm('Yakin ingin logout?')) {
+        window.location.href = '../auth/logout.php';
+    }
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+    handleResize();
+    calculateProfit();
+    validatePrice();
+    
+    // Auto-focus on nama field
+    document.getElementById('nama').focus();
+});
 </script>
+
 </body>
 </html>

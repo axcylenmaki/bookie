@@ -1,0 +1,206 @@
+/* sidebar.css untuk Super Admin */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+/* MAIN CONTAINER */
+.main-wrapper {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* =====================
+   SIDEBAR
+===================== */
+.sidebar {
+  width: 250px;
+  background-color: #343a40;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  height: 100vh;
+  left: 0;
+  top: 0;
+
+  overflow: hidden; /* 🔥 JANGAN SCROLL DI SINI */
+}
+
+/* Logo */
+.sidebar-logo {
+  padding: 20px;
+  text-align: center;
+  border-bottom: 1px solid #495057;
+  flex-shrink: 0;
+}
+
+.sidebar-logo h2 {
+  color: white;
+  font-size: 1.8rem;
+  font-weight: bold;
+}
+
+/* User Info */
+.user-info {
+  padding: 20px;
+  text-align: center;
+  border-bottom: 1px solid #495057;
+  flex-shrink: 0;
+}
+
+.user-info a {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  padding: 10px;
+  border-radius: 6px;
+  transition: background-color 0.3s;
+}
+
+.user-info a:hover {
+  background-color: #495057;
+}
+
+.user-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: white;
+}
+
+.user-role {
+  font-size: 0.9rem;
+  color: #adb5bd;
+  text-transform: capitalize;
+}
+
+/* =====================
+   NAVIGATION (SCROLL AREA)
+===================== */
+.sidebar-nav {
+  flex: 1;                 /* 🔥 AMBIL SISA TINGGI */
+  overflow-y: auto;        /* 🔥 SCROLL DI SINI */
+  padding: 10px 0;
+}
+
+/* Scrollbar (opsional tapi cakep) */
+.sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: #6c757d;
+  border-radius: 3px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.menu-section-title {
+  padding: 10px 20px;
+  color: #adb5bd;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.menu-items {
+  list-style: none;
+}
+
+.menu-items a {
+  display: block;
+  padding: 12px 20px;
+  color: #adb5bd;
+  text-decoration: none;
+  transition: all 0.25s;
+  border-left: 3px solid transparent;
+}
+
+.menu-items a:hover {
+  background-color: #495057;
+  color: white;
+  border-left-color: #0d6efd;
+}
+
+.menu-items a.active {
+  background-color: #495057;
+  color: white;
+  font-weight: 600;
+  border-left-color: #0d6efd;
+}
+
+/* =====================
+   LOGOUT (SELALU KELIHATAN)
+===================== */
+.logout-section {
+  padding: 20px;
+  border-top: 1px solid #495057;
+  flex-shrink: 0;
+}
+
+.logout-btn {
+  display: block;
+  width: 100%;
+  background-color: #495057;
+  color: white;
+  padding: 12px;
+  border-radius: 6px;
+  text-align: center;
+  text-decoration: none;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+}
+
+.logout-btn:hover {
+  background-color: #6c757d;
+  color: white;
+}
+
+/* =====================
+   CONTENT AREA
+===================== */
+.content-area {
+  flex: 1;
+  margin-left: 250px;
+  padding: 20px;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+/* =====================
+   HELP BUTTON
+===================== */
+.help-section {
+  padding: 15px 20px 20px;
+  flex-shrink: 0;
+}
+
+.help-btn {
+  display: block;
+  width: 100%;
+  background-color: #212529;
+  color: #adb5bd;
+  padding: 12px;
+  border-radius: 6px;
+  text-align: center;
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: all 0.3s;
+  border: 1px dashed #495057;
+}
+
+.help-btn:hover {
+  background-color: #495057;
+  color: #fff;
+  border-color: #0d6efd;
+}
